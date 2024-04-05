@@ -1,0 +1,693 @@
+Parameters:
+  ClusterName:
+    Type: String
+    Description: Name for the ECS cluster
+#------------------------------------CORE PARAMETERS------------------------------------------------
+  CoreServiceName:
+    Type: String
+    Description: Name for the ECS service
+
+  CoreTaskDefinitionName:
+    Type: String
+    Description: Name for the ECS task definition
+
+  CoreContainerName:
+    Type: String
+    Description: Name for the container within the task definition
+
+  CoreImage:
+    Type: String
+    Description: Docker image URL for the container
+  
+  CoreEnvironmentVariables1:
+    Type: String
+  CoreEnvironmentVariables2:
+    Type: String
+  
+  #------------------LIVE PARAMETERS---------------------------------------------------------------
+
+  LiveServiceName:
+    Type: String
+    Description: Name for the ECS service
+
+  LiveTaskDefinitionName:
+    Type: String
+    Description: Name for the ECS task definition
+
+  LiveContainerName:
+    Type: String
+    Description: Name for the container within the task definition
+
+  LiveImage:
+    Type: String
+    Description: Docker image URL for the container
+
+  LiveEnvironmentVariables1:
+    Type: String
+  LiveEnvironmentVariables2:
+    Type: String
+  
+  #------------------------------------ISVS----------------------------------------------
+
+  IsvsServiceName:
+    Type: String
+    Description: Name for the ECS service
+
+  IsvsTaskDefinitionName:
+    Type: String
+    Description: Name for the ECS task definition
+
+  IsvsContainerName:
+    Type: String
+    Description: Name for the container within the task definition
+
+  IsvsImage:
+    Type: String
+    Description: Docker image URL for the container
+  
+  IsvsEnvironmentVariables1:
+    Type: String
+  IsvsEnvironmentVariables2:
+    Type: String
+  
+  #---------------------VPC&SUBNETS---------------------------------------------------
+  
+  Vpc:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC id 
+
+  PublicSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Public subnet IDs where the ALB will be deployed
+
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Private subnet IDs where ECS services will be deployed
+
+Resources:
+  CoreECSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${CoreServiceName}-ECS-Role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        #- arn:aws:iam::${AWS::AccountId}:policy/SecretsManagerPolicy-ECSTaskExecution
+  
+  LiveECSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${LiveServiceName}-ECS-Role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        #- arn:aws:iam::${AWS::AccountId}:policy/SecretsManagerPolicy-ECSTaskExecution
+  
+  IsvsECSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${IsvsServiceName}-ECS-Role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      
+  
+  # SecretsManagerPolicy:
+  #   Type: AWS::IAM::ManagedPolicy
+  #   Properties:
+  #     #PolicyName: !Sub ${ServiceName}-SecretsManager-Policy
+  #     PolicyDocument:
+  #       Version: "2012-10-17"
+  #       Statement:
+  #         - Effect: Allow
+  #           Action:
+  #             - secretsmanager:GetSecretValue
+  #           Resource:
+  #              - arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:waverlite_env_secrets-wJLScp:*
+              
+
+
+#----------------------------------CLUSTER DETAILS----------------------------------------------    
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref ClusterName
+
+#--------------------------------TASK DEFINITION-----------------------------------------------------
+  
+  CoreTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref CoreTaskDefinitionName
+      Cpu: 256
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt CoreECSRole.Arn
+      ContainerDefinitions:
+        - Name: !Ref CoreContainerName
+          Image: !Ref CoreImage
+          PortMappings:
+            - ContainerPort: 80
+          # Secrets:
+          #   - Name: INF_WAVERLITE_CORE_PRODUCT_KEY
+          #     ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:waverlite_env_secrets-wJLScp:INF_WAVERLITE_CORE_PRODUCT_KEY::"
+          #   - Name: WT_KH_WAVERLITE_WEB_PRODUCT_KEY
+          #     ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:waverlite_env_secrets-wJLScp:WT_KH_WAVERLITE_WEB_PRODUCT_KEY::"
+          Environment:
+          - Name: INF_WAVERLITE_CORE_PRODUCT_KEY
+            Value: !Ref CoreEnvironmentVariables1
+          - Name: WT_KH_WAVERLITE_WEB_PRODUCT_KEY
+            Value: !Ref CoreEnvironmentVariables2
+  
+  LiveTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref LiveTaskDefinitionName
+      Cpu: 256
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt LiveECSRole.Arn
+      ContainerDefinitions:
+        - Name: !Ref LiveContainerName
+          Image: !Ref LiveImage
+          PortMappings:
+            - ContainerPort: 80
+          # Secrets:
+          #   - Name: INF_WAVERLITE_CORE_PRODUCT_KEY
+          #     ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:waverlite_env_secrets-wJLScp:INF_WAVERLITE_CORE_PRODUCT_KEY::"
+          #   - Name: WT_KH_WAVERLITE_WEB_PRODUCT_KEY
+          #     ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:waverlite_env_secrets-wJLScp:WT_KH_WAVERLITE_WEB_PRODUCT_KEY::"
+          Environment:
+          - Name: INF_WAVERLITE_CORE_PRODUCT_KEY
+            Value: !Ref LiveEnvironmentVariables1
+          - Name: WT_KH_WAVERLITE_WEB_PRODUCT_KEY
+            Value: !Ref LiveEnvironmentVariables2
+
+  IsvsTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref IsvsTaskDefinitionName
+      Cpu: 256
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt IsvsECSRole.Arn
+      ContainerDefinitions:
+        - Name: !Ref IsvsContainerName
+          Image: !Ref IsvsImage
+          PortMappings:
+            - ContainerPort: 80
+          # Secrets:
+          #   - Name: INF_WAVERLITE_CORE_PRODUCT_KEY
+          #     ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:waverlite_env_secrets-wJLScp:INF_WAVERLITE_CORE_PRODUCT_KEY::"
+          #   - Name: WT_KH_WAVERLITE_WEB_PRODUCT_KEY
+          #     ValueFrom: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:waverlite_env_secrets-wJLScp:WT_KH_WAVERLITE_WEB_PRODUCT_KEY::"
+          Environment:
+          - Name: INF_WAVERLITE_CORE_PRODUCT_KEY
+            Value: !Ref IsvsEnvironmentVariables1
+          - Name: WT_KH_WAVERLITE_WEB_PRODUCT_KEY
+            Value: !Ref IsvsEnvironmentVariables2
+  
+  #----------------------------LOAD BALANCER SECURITY GROUPS---------------------------------------
+  
+  EcsCoreSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http and https and database connection
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref Vpc
+  
+  EcsLiveSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http and https and database connection
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref Vpc
+  
+  EcsIsvsSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http and https and database connection
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref Vpc
+
+#-------------------------------SERVICE LOAD BALANCERS-------------------------------------------------
+  
+  CoreALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${CoreServiceName}-ALB
+      Subnets: !Ref PublicSubnetIds
+      SecurityGroups:
+        - !Ref EcsCoreSG
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: "60"
+      Tags:
+        - Key: Name
+          Value: !Sub ${CoreServiceName}-ALB
+  
+  LiveALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${LiveServiceName}-ALB
+      Subnets: !Ref PublicSubnetIds
+      SecurityGroups:
+        - !Ref EcsLiveSG
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: "60"
+      Tags:
+        - Key: Name
+          Value: !Sub ${LiveServiceName}-ALB
+  
+  IsvsALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${IsvsServiceName}-ALB
+      Subnets: !Ref PublicSubnetIds
+      SecurityGroups: 
+        - !Ref EcsIsvsSG
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: "60"
+      Tags:
+        - Key: Name
+          Value: !Sub ${IsvsServiceName}-ALB
+      
+#-------------------------------TARGET GROUPS--------------------------------------------------
+  
+  CoreTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn:
+      - CoreALB
+    Properties:
+      Name: !Sub ${CoreServiceName}-TargetGroup
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref Vpc
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: "/"
+      HealthCheckPort: "traffic-port"
+      HealthCheckProtocol: HTTP
+      Matcher:
+        HttpCode: 200
+      TargetType: ip
+
+  LiveTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn:
+      - LiveALB
+    Properties:
+      Name: !Sub ${LiveServiceName}-TargetGroup
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref Vpc
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: "/"
+      HealthCheckPort: "traffic-port"
+      HealthCheckProtocol: HTTP
+      Matcher:
+        HttpCode: 200
+      TargetType: ip
+
+  IsvsTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn:
+      - IsvsALB
+    Properties:
+      Name: !Sub ${IsvsServiceName}-TargetGroup
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref Vpc
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: "/"
+      HealthCheckPort: "traffic-port"
+      HealthCheckProtocol: HTTP
+      Matcher:
+        HttpCode: 200
+      TargetType: ip
+      
+#----------------------------------LISTENERS----------------------------------------------      
+
+  CoreListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn:
+      - CoreALB
+    Properties:
+      DefaultActions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            ContentType: "text/plain"
+            StatusCode: "200"
+      LoadBalancerArn: !Ref CoreALB
+      Port: 80
+      Protocol: HTTP
+  
+  LiveListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: 
+      - LiveALB
+    Properties:
+      DefaultActions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            ContentType: "text/plain"
+            StatusCode: "200"
+      LoadBalancerArn: !Ref LiveALB
+      Port: 80
+      Protocol: HTTP
+  
+  IsvsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: 
+      - IsvsALB
+    Properties:
+      DefaultActions:
+        - Type: fixed-response
+          FixedResponseConfig:
+            ContentType: "text/plain"
+            StatusCode: "200"
+      LoadBalancerArn: !Ref IsvsALB
+      Port: 80
+      Protocol: HTTP
+  
+ #------------------------------------LISTENER RULE--------------------------------------- 
+  
+  CoreListenerRule:
+    Type: "AWS::ElasticLoadBalancingV2::ListenerRule"
+    DependsOn:
+      - CoreALB
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref CoreTargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - "/*"
+      ListenerArn: !Ref CoreListener
+      Priority: 1
+  
+  LiveListenerRule:
+    Type: "AWS::ElasticLoadBalancingV2::ListenerRule"
+    DependsOn:
+      - LiveALB
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref LiveTargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - "/*"
+      ListenerArn: !Ref LiveListener
+      Priority: 1
+  
+  IsvsListenerRule:
+    Type: "AWS::ElasticLoadBalancingV2::ListenerRule"
+    DependsOn:
+      - IsvsALB
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref IsvsTargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - "/*"
+      ListenerArn: !Ref IsvsListener
+      Priority: 1
+
+#-----------------------------------SERVICE-------------------------------------------
+  
+  EcsCoreService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - CoreALB
+    Properties:
+      Cluster: !Ref ECSCluster
+      ServiceName: !Ref CoreServiceName
+      TaskDefinition: !Ref CoreTaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: 1  
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets: !Ref PrivateSubnetIds
+          SecurityGroups : 
+           - !GetAtt EcsCoreSG.GroupId
+      LoadBalancers: 
+        - TargetGroupArn: !Ref CoreTargetGroup
+          ContainerPort: 80
+          ContainerName: !Ref CoreContainerName
+
+  EcsLiveService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - LiveALB
+    Properties:
+      Cluster: !Ref ECSCluster
+      ServiceName: !Ref LiveServiceName
+      TaskDefinition: !Ref LiveTaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: 1  
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets: !Ref PrivateSubnetIds
+          SecurityGroups: 
+           - !GetAtt EcsLiveSG.GroupId
+      LoadBalancers: 
+        - TargetGroupArn: !Ref LiveTargetGroup
+          ContainerPort: 80
+          ContainerName: !Ref LiveContainerName
+
+  EcsIsvsService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - IsvsALB
+    Properties:
+      Cluster: !Ref ECSCluster
+      ServiceName: !Ref IsvsServiceName
+      TaskDefinition: !Ref IsvsTaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: 1  
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets: !Ref PrivateSubnetIds
+          SecurityGroups : 
+           - !GetAtt EcsIsvsSG.GroupId
+      LoadBalancers: 
+        - TargetGroupArn: !Ref IsvsTargetGroup
+          ContainerPort: 80
+          ContainerName: !Ref IsvsContainerName
+
+#------------------------------CORE SERVICE SCALING CONFIGURATIONS----------------------------------------------------
+  
+  CoreScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn:
+      - EcsCoreService
+    Properties:
+      MaxCapacity: 5  
+      MinCapacity: 1
+      ResourceId: !Sub "service/${ClusterName}/${CoreServiceName}"
+      #RoleARN: !GetAtt "AutoscalingRole.Arn"
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  CoreScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn:
+      - EcsCoreService
+    Properties:
+      PolicyName: ECSAutoScalingPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref CoreScalableTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            MetricIntervalUpperBound: 10
+            ScalingAdjustment: 1
+          - MetricIntervalLowerBound: 10
+            ScalingAdjustment: 4
+    
+  CoreTargetTrackingScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn:
+      - EcsCoreService
+    Properties:
+      PolicyName: cpu75-target-tracking-scaling-policy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref CoreScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 65.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+      
+#--------------------------------LIVE SCALING CONFIGURATIONS-------------------------------------------------
+
+  LiveScalableTarget:
+      Type: AWS::ApplicationAutoScaling::ScalableTarget
+      DependsOn:
+        - EcsLiveService
+      Properties:
+        MaxCapacity: 5  
+        MinCapacity: 1
+        ResourceId: !Sub "service/${ClusterName}/${LiveServiceName}"
+        #RoleARN: !GetAtt "AutoscalingRole.Arn"
+        ScalableDimension: ecs:service:DesiredCount
+        ServiceNamespace: ecs
+
+  LiveScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn:
+      - EcsLiveService
+    Properties:
+      PolicyName: ECSAutoScalingPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref LiveScalableTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            MetricIntervalUpperBound: 10
+            ScalingAdjustment: 1
+          - MetricIntervalLowerBound: 10
+            ScalingAdjustment: 4
+    
+  LiveTargetTrackingScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn:
+      - EcsLiveService
+    Properties:
+      PolicyName: cpu75-target-tracking-scaling-policy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref LiveScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 65.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+
+#-------------------------------ISVS SCALING CONFIGURATION-------------------------------------------
+
+  IsvsScalableTarget:
+      Type: AWS::ApplicationAutoScaling::ScalableTarget
+      DependsOn:
+        - EcsIsvsService
+      Properties:
+        MaxCapacity: 5  
+        MinCapacity: 1
+        ResourceId: !Sub "service/${ClusterName}/${IsvsServiceName}"
+        #RoleARN: !GetAtt "AutoscalingRole.Arn"
+        ScalableDimension: ecs:service:DesiredCount
+        ServiceNamespace: ecs
+
+  IsvsScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn:
+      - EcsIsvsService
+    Properties:
+      PolicyName: ECSAutoScalingPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref IsvsScalableTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            MetricIntervalUpperBound: 10
+            ScalingAdjustment: 1
+          - MetricIntervalLowerBound: 10
+            ScalingAdjustment: 4
+    
+  IsvsTargetTrackingScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    DependsOn:
+      - EcsIsvsService
+    Properties:
+      PolicyName: cpu75-target-tracking-scaling-policy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref IsvsScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 65.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+Outputs:
+  CoreApplicationURL:
+    Description: URL of the deployed application
+    Value: !GetAtt CoreALB.DNSName
+  LiveApplicationURL:
+    Description: URL of the deployed application
+    Value: !GetAtt LiveALB.DNSName
+  IsvsApplicationURL:
+    Description: URL of the deployed application
+    Value: !GetAtt IsvsALB.DNSName
+
